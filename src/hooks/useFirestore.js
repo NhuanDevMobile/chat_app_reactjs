@@ -6,6 +6,7 @@ const useFirestore = (collection, condition) => {
 
     React.useEffect(() => {
         let collectionRef = db.collection(collection);
+
         if (condition) {
             if (!condition.compareValue || !condition.compareValue.length) {
                 // reset documents data
@@ -13,9 +14,7 @@ const useFirestore = (collection, condition) => {
                 return;
             }
 
-            collectionRef = collectionRef
-                .where(condition.fieldName, condition.operator, condition.compareValue);
-        
+            collectionRef = collectionRef.where(condition.fieldName, condition.operator, condition.compareValue);
         }
 
         const unsubscribe = collectionRef.onSnapshot((snapshot) => {

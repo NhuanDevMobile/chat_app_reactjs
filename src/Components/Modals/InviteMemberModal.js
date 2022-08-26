@@ -5,7 +5,7 @@ import { debounce } from 'lodash';
 import { db } from '../../firebase/config';
 import { AppContext } from '../../context/AppProvider';
 
-function DebounceSelect({ fetchOptions, debounceTimeout = 400, curMembers, ...props }) {
+function DebounceSelect({ fetchOptions, debounceTimeout = 300, curMembers, ...props }) {
     // Search: abcddassdfasdf
 
     const [fetching, setFetching] = useState(false);
@@ -31,7 +31,7 @@ function DebounceSelect({ fetchOptions, debounceTimeout = 400, curMembers, ...pr
             setOptions([]);
         };
     }, []);
-
+    console.log(options);
     return (
         <Select
             labelInValue
@@ -54,9 +54,10 @@ function DebounceSelect({ fetchOptions, debounceTimeout = 400, curMembers, ...pr
 
 async function fetchUserList(search, curMembers) {
     console.log(search?.toLowerCase());
+
     return db
         .collection('users')
-        .where('keywords', 'array-contains', search?.toLowerCase())
+        .where('keywords', 'array-contains', search)
         .orderBy('displayName')
         .limit(20)
         .get()

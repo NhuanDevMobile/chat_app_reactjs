@@ -1,9 +1,13 @@
 import { UserAddOutlined } from '@ant-design/icons';
-import { Avatar, Button, Tooltip, Form, Input, Alert } from 'antd';
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { AppContext } from '../../context/AppProvider';
+import { Button, Tooltip, Avatar, Form, Input, Alert } from 'antd';
 import Message from './Message';
+import { addDocument } from '../../firebase/services';
+import useFirestore from '../../hooks/useFirestore';
+import { AppContext } from '../../context/AppProvider';
+import { AuthContext } from '../../context/AuthProvider';
+import { db } from '../../firebase/config';
 
 const HeaderStyled = styled.div`
     display: flex;
@@ -65,6 +69,55 @@ const MessageListStyled = styled.div`
 
 export default function ChatWindow() {
     const { selectedRoom, members, setIsInviteMemberVisible } = useContext(AppContext);
+    const {
+        user: { uid, photoURL, displayName },
+    } = useContext(AuthContext);
+    const [inputValue, setInputValue] = useState('');
+    const [form] = Form.useForm();
+    const inputRef = useRef(null);
+    const messageListRef = useRef(null);
+
+    const handleInputChange = (e) => {
+        setInputValue(e.target.value);
+    };
+
+    const handleOnSubmit = () => {
+        addDocument('messages', {
+            text: inputValue,
+            uid,
+            photoURL,
+            roomId: selectedRoom.id,
+            displayName,
+        });
+
+        form.resetFields(['message']);
+
+        // focus to input again after submit
+        if (inputRef?.current) {
+            setTimeout(() => {
+                inputRef.current.focus();
+            });
+        }
+    };
+
+    const condition = React.useMemo(
+        () => ({
+            fieldName: 'roomId',
+            operator: '==',
+            compareValue: selectedRoom.id,
+        }),
+        [selectedRoom.id],
+    );
+
+    const messages = useFirestore('messages', condition);
+    const sortedMessages = [...messages].sort((a, b) => a.createdAt - b.createdAt);
+
+    useEffect(() => {
+        // scroll to bottom after message changed
+        if (messageListRef?.current) {
+            messageListRef.current.scrollTop = messageListRef.current.scrollHeight + 50;
+        }
+    }, [messages]);
 
     return (
         <WrapperStyled>
@@ -86,9 +139,8 @@ export default function ChatWindow() {
                             <Avatar.Group size="small" maxCount={2}>
                                 {members.map((member) => (
                                     <Tooltip title={member.displayName} key={member.id}>
-                                        <Avatar src={member.photoUrl}>
-                                            {' '}
-                                            {member.photoUrl ? '' : member.displayName?.charAt(0).toUpperCase()}{' '}
+                                        <Avatar src={member.photoURL}>
+                                            {member.photoURL ? '' : member.displayName?.charAt(0)?.toUpperCase()}
                                         </Avatar>
                                     </Tooltip>
                                 ))}
@@ -96,17 +148,31 @@ export default function ChatWindow() {
                         </ButtonGroupStyled>
                     </HeaderStyled>
                     <ContentStyled>
-                        <MessageListStyled>
-                            <Message text="text" photoUrl={null} displayName="Tung" createAt={123123123123} />
-                            <Message text="text" photoUrl={null} displayName="Tung" createAt={123123123123} />
-                            <Message text="text" photoUrl={null} displayName="Tung" createAt={123123123123} />
-                            <Message text="text" photoUrl={null} displayName="Tung" createAt={123123123123} />
+                        <MessageListStyled ref={messageListRef}>
+                            {sortedMessages.map((mes) => (
+                                <Message
+                                    key={mes.id}
+                                    text={mes.text}
+                                    photoURL={mes.photoURL}
+                                    displayName={mes.displayName}
+                                    createdAt={mes.createdAt}
+                                />
+                            ))}
                         </MessageListStyled>
-                        <FormStyled>
-                            <Form.Item>
-                                <Input placeholder="Nhập tin nhắn" bordered={false} autoComplete="off" />
+                        <FormStyled form={form}>
+                            <Form.Item name="message">
+                                <Input
+                                    ref={inputRef}
+                                    onChange={handleInputChange}
+                                    onPressEnter={handleOnSubmit}
+                                    placeholder="Nhập tin nhắn..."
+                                    bordered={false}
+                                    autoComplete="off"
+                                />
                             </Form.Item>
-                            <Button type="primary">Gửi</Button>
+                            <Button type="primary" onClick={handleOnSubmit}>
+                                Gửi
+                            </Button>
                         </FormStyled>
                     </ContentStyled>
                 </>
